@@ -107,11 +107,12 @@ install_available \
 
 echo "[6/10] Android และ APK Reverse Engineering..."
 install_available \
-  adb fastboot apktool jadx dex2jar smali baksmali aapt aapt2 \
+  adb fastboot apktool jadx dex2jar smali baksmali aapt \
   android-sdk-platform-tools-common
 
 # Android SDK command-line tools (official Google package)
 ANDROID_SDK_ROOT="/opt/android-sdk"
+ANDROID_BUILD_TOOLS_VERSION="35.0.0"
 CMDLINE_ZIP="/tmp/android-cmdline-tools.zip"
 CMDLINE_URL="https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip"
 
@@ -129,17 +130,22 @@ if [[ "$ARCH" == "amd64" ]]; then
     cat >/etc/profile.d/android-sdk.sh <<EOF
 export ANDROID_HOME=$ANDROID_SDK_ROOT
 export ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT
-export PATH=\$PATH:\$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:\$ANDROID_SDK_ROOT/platform-tools
+export PATH=\$PATH:\$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:\$ANDROID_SDK_ROOT/platform-tools:\$ANDROID_SDK_ROOT/build-tools/$ANDROID_BUILD_TOOLS_VERSION
 EOF
 
     export ANDROID_HOME="$ANDROID_SDK_ROOT"
     export ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT"
-    export PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools"
+    export PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/build-tools/$ANDROID_BUILD_TOOLS_VERSION"
 
     yes | sdkmanager --licenses >/dev/null 2>&1 || true
     sdkmanager \
       "platform-tools" \
-      "cmdline-tools;latest" || true
+      "cmdline-tools;latest" \
+      "build-tools;$ANDROID_BUILD_TOOLS_VERSION" || true
+
+    if [[ -x "$ANDROID_SDK_ROOT/build-tools/$ANDROID_BUILD_TOOLS_VERSION/aapt2" ]]; then
+      ln -sf "$ANDROID_SDK_ROOT/build-tools/$ANDROID_BUILD_TOOLS_VERSION/aapt2" /usr/local/bin/aapt2
+    fi
   else
     echo "[WARN] ดาวน์โหลด Android Command-line Tools ไม่สำเร็จ"
   fi
@@ -198,7 +204,7 @@ apt-get clean
 
 echo
 echo "================= ผลการติดตั้ง ================="
-for cmd in git python3 pip3 node npm java javac docker adb fastboot apktool jadx code; do
+for cmd in git python3 pip3 node npm java javac docker adb fastboot apktool jadx aapt aapt2 code; do
   if command -v "$cmd" >/dev/null 2>&1; then
     printf "  [OK]   %-12s %s\n" "$cmd" "$(command -v "$cmd")"
   else
@@ -217,6 +223,7 @@ docker compose version 2>/dev/null || true
 adb version 2>/dev/null | head -n 1 || true
 apktool --version 2>/dev/null || true
 jadx --version 2>/dev/null || true
+aapt2 version 2>/dev/null || true
 
 echo
 echo "=================================================="

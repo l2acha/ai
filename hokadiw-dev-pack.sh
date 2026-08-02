@@ -165,12 +165,31 @@ fi
 echo "[8/10] VS Code และ Browser (เฉพาะเครื่อง amd64)..."
 if [[ "$ARCH" == "amd64" ]]; then
   # Microsoft VS Code repository
-  install -d -m 0755 /etc/apt/keyrings
+  # ลบรายการเดิมทั้งหมดเพื่อป้องกัน Signed-By ชนกัน
+  rm -f \
+    /etc/apt/sources.list.d/vscode.list \
+    /etc/apt/sources.list.d/vscode.sources \
+    /etc/apt/keyrings/packages.microsoft.gpg
+
+  grep -RIl "packages.microsoft.com/repos/code" \
+    /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null |
+  while IFS= read -r source_file; do
+    sed -i '\|packages.microsoft.com/repos/code|d' "$source_file"
+  done
+
+  install -d -m 0755 /usr/share/keyrings
   curl -fsSL https://packages.microsoft.com/keys/microsoft.asc |
-    gpg --dearmor --yes -o /etc/apt/keyrings/packages.microsoft.gpg
-  chmod a+r /etc/apt/keyrings/packages.microsoft.gpg
-  echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
-    >/etc/apt/sources.list.d/vscode.list
+    gpg --dearmor --yes -o /usr/share/keyrings/microsoft.gpg
+  chmod 0644 /usr/share/keyrings/microsoft.gpg
+
+  cat >/etc/apt/sources.list.d/vscode.sources <<'EOF'
+Types: deb
+URIs: https://packages.microsoft.com/repos/code
+Suites: stable
+Components: main
+Architectures: amd64 arm64 armhf
+Signed-By: /usr/share/keyrings/microsoft.gpg
+EOF
 
   # Google Chrome repository
   curl -fsSL https://dl.google.com/linux/linux_signing_key.pub |
